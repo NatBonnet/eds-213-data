@@ -1,0 +1,65 @@
+---
+title: "213-assignment-6.1"
+author: "Nathalie Bonnet"
+date: 05/14/2026
+format: html
+---
+
+```{r}
+# Load necessary packages
+library(tidyverse)
+library(DBI)
+library(duckdb)
+library(dbplyr)
+```
+
+```{r}
+# Open connection to database
+conn <- DBI::dbConnect(duckdb::duckdb(), 
+                       dbdir = "database/database.duckdb")
+conn
+```
+```{r}
+# List tables
+DBI::dbListTables(conn)
+
+# Grab tables needed
+personnel <- tbl(conn, "Personnel")
+egg_table <- tbl(conn, 'Bird_eggs')
+nests <- tbl(conn, 'Bird_nests')
+
+# Look at column names again because I can never remember them
+head(nests)
+head(egg_table)
+head(personnel)
+
+# Join on egg table
+egg_table %>% 
+  #Join nests on nest id
+  left_join(nests, by = "Nest_ID") %>% 
+  # Group by observer
+  group_by(Observer) %>% 
+  # Count eggs by observer
+  summarise(total_eggs = n()) %>% 
+  # Join again on personnel to match name
+  left_join(personnel, join_by(Observer == Abbreviation)) %>% 
+  # Select desired columns
+  select(total_eggs, Name) %>% 
+  # Get top 3 results
+  slice_max(order_by = total_eggs, n =3)
+```
+
+```{r}
+# Close connection so the database can be opened elsewhere
+DBI::dbDisconnect(conn, shutdown = TRUE)
+```
+
+If you used multiple R statements, did:
+
+-dbplyr create a temporary table? Or did it manage to do everything in one query?
+
+dbplyr managed to do every function in one query. 
+
+Did it limit to the first three rows using an R expression or an SQL LIMIT clause?
+
+I used slice_max(), an R expression to limit to the maximum 3 results in total_eggs. I could have also used arrange(desc()), and taken head(3), but I prefer slice max as a cleaner way to do it. 
